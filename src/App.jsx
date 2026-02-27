@@ -134,6 +134,12 @@ function App() {
       return
     }
 
+    // Validate job description has meaningful content (at least 20 characters)
+    if (formData.jobDescription.trim().length < 20) {
+      setError('Job description is too short. Please provide a detailed job description with required skills and qualifications.')
+      return
+    }
+
     setLoading(true)
     setError(null)
 
@@ -282,7 +288,11 @@ function App() {
     let decision = 'Reject'
     let confidenceLevel = 'Low'
 
-    if (overallScore >= 60 || missingSkills.length <= 3) {
+    // Only shortlist if ALL of the following are true:
+    // 1. Overall score >= 60
+    // 2. Missing skills <= 3
+    // 3. JD has at least one required skill (to ensure meaningful comparison)
+    if (overallScore >= 60 && missingSkills.length <= 3 && jdSkills.length > 0) {
       decision = 'Shortlist'
       confidenceLevel = overallScore >= 80 ? 'High' : 'Medium'
     }
