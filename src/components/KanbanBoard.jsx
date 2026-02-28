@@ -30,10 +30,6 @@ const KanbanBoard = ({
   }
 
   const handleDragStart = (e, candidate) => {
-    if (candidate.stage === 'onboard') {
-      e.preventDefault()
-      return
-    }
     setDraggedCard(candidate)
     e.dataTransfer.effectAllowed = 'move'
   }
@@ -52,12 +48,6 @@ const KanbanBoard = ({
     setDragOverStage(null)
 
     if (!draggedCard) return
-
-    // Prevent moving from onboard
-    if (draggedCard.stage === 'onboard') {
-      setDraggedCard(null)
-      return
-    }
 
     // If moving to On Hold, show reason modal
     if (targetStage === 'onhold') {
@@ -97,9 +87,7 @@ const KanbanBoard = ({
   }
 
   const handleCardClick = (candidate) => {
-    if (candidate.stage !== 'onboard') {
-      onViewCard(candidate)
-    }
+    onViewCard(candidate)
   }
 
   const formatDate = (dateString) => {
@@ -144,8 +132,8 @@ const KanbanBoard = ({
               {getCandidatesByStage(stage.id).map(candidate => (
                 <div
                   key={candidate.id}
-                  className={`kanban-card ${candidate.stage === 'onboard' ? 'disabled' : ''}`}
-                  draggable={candidate.stage !== 'onboard'}
+                  className="kanban-card"
+                  draggable={true}
                   onDragStart={(e) => handleDragStart(e, candidate)}
                   onClick={() => handleCardClick(candidate)}
                 >
