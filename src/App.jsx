@@ -502,7 +502,7 @@ function App() {
       overallScore: result.evaluation.overall_score,
       skills: result.candidate_profile.skills || [],
       location: result.candidate_profile.location,
-      stage: result.final_decision.decision === 'Shortlist' ? 'shortlisted' : 'todo',
+      stage: result.final_decision.decision === 'Shortlist' ? 'shortlisted' : 'onhold',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       resumeFileName: formData.uploadedFileName,
@@ -568,16 +568,14 @@ function App() {
             <div className="results-section">
               <div className="results-header">
                 <h2>Evaluation Results</h2>
-                {result.final_decision.decision === 'Shortlist' && (
-                  <div className="action-buttons">
-                    <button
-                      className="btn btn-success"
-                      onClick={handleMoveToKanban}
-                    >
-                      Move to Kanban
-                    </button>
-                  </div>
-                )}
+                <div className="action-buttons">
+                  <button
+                    className="btn btn-success"
+                    onClick={handleMoveToKanban}
+                  >
+                    Move to Kanban
+                  </button>
+                </div>
               </div>
 
               <div className="score-card">
@@ -610,9 +608,8 @@ function App() {
                     </p>
                   )}
                   
-                  {/* Send Email & WhatsApp Buttons for Shortlisted */}
-                  {result.final_decision.decision === 'Shortlist' && (
-                    <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {/* Send Email & WhatsApp Buttons */}
+                  <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <a
                         href={result.candidate_profile.phone 
                           ? `https://wa.me/${result.candidate_profile.phone.replace(/\D/g, '')}?text=Congratulations! You have been shortlisted for the position.`
@@ -642,7 +639,6 @@ function App() {
                         📧 Send Email
                       </button>
                     </div>
-                  )}
                 </div>
 
                 {/* Score Breakdown */}
