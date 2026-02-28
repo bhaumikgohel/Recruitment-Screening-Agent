@@ -222,6 +222,68 @@ body {
   color: var(--gray-400);
 }
 
+.card-body textarea:disabled,
+.card-body textarea.locked {
+  background: var(--gray-100);
+  color: var(--gray-500);
+  cursor: not-allowed;
+  border-color: var(--gray-300);
+}
+
+/* JD Lock Container */
+.jd-lock-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--gray-200);
+}
+
+.jd-lock-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 6px;
+  background: white;
+  color: var(--gray-600);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.jd-lock-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.jd-lock-btn.locked {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.jd-lock-btn.locked:hover {
+  background: #fde68a;
+  border-color: #d97706;
+}
+
+.lock-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.jd-lock-hint {
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  font-style: italic;
+}
+
 /* File Upload Area */
 .file-upload-area {
   border: 2px dashed var(--gray-300);

@@ -156,6 +156,24 @@ const KanbanBoard = ({
                   
                   <p className="card-role">{candidate.currentRole || 'Unknown Role'}</p>
                   
+                  {candidate.location && (
+                    <div className="card-location">
+                      <svg className="location-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                      </svg>
+                      <span>{candidate.location}</span>
+                    </div>
+                  )}
+                  
+                  {candidate.interviewTakenBy && (
+                    <div className="card-interviewer">
+                      <svg className="interviewer-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                      </svg>
+                      <span>Interview by: {candidate.interviewTakenBy}</span>
+                    </div>
+                  )}
+                  
                   {candidate.onHoldReason && (
                     <div className="card-reason">
                       <span className="reason-label">On Hold:</span>

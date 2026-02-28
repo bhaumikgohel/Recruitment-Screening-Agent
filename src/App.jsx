@@ -7,11 +7,22 @@ import AddProfileModal from './components/AddProfileModal'
 import './index.css'
 
 // Initial state for the form
-const initialFormState = {
+const getInitialFormState = () => ({
   jobDescription: '',
   resumeText: '',
   uploadedFileName: null
-}
+})
+
+// Common Indian cities for location extraction
+const COMMON_CITIES = [
+  'Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Ahmedabad', 'Chennai', 'Kolkata', 'Surat',
+  'Pune', 'Jaipur', 'Lucknow', 'Kanpur', 'Nagpur', 'Indore', 'Thane', 'Bhopal', 'Visakhapatnam',
+  'Pimpri', 'Patna', 'Vadodara', 'Ghaziabad', 'Ludhiana', 'Agra', 'Nashik', 'Faridabad',
+  'Meerut', 'Rajkot', 'Kalyan', 'Vasai', 'Varanasi', 'Srinagar', 'Aurangabad', 'Dhanbad',
+  'Amritsar', 'Navi Mumbai', 'Allahabad', 'Ranchi', 'Howrah', 'Coimbatore', 'Jabalpur',
+  'Gwalior', 'Vijayawada', 'Jodhpur', 'Madurai', 'Raipur', 'Kota', 'Guwahati', 'Chandigarh',
+  'Solapur', 'Hubli', 'Tiruchirappalli', 'Bareilly', 'Mysore', 'Tiruppur', 'Gurgaon', 'Noida'
+]
 
 // Views
 const VIEWS = {
@@ -24,13 +35,36 @@ function App() {
   const [currentView, setCurrentView] = useState(VIEWS.SCREENING)
 
   // Form state
-  const [formData, setFormData] = useState(initialFormState)
+  const [formData, setFormData] = useState(() => {
+    // Restore locked JD on initialization
+    const lockedJd = localStorage.getItem('lockedJd')
+    const isLocked = localStorage.getItem('jdLocked') === 'true'
+    return {
+      ...getInitialFormState(),
+      jobDescription: (isLocked && lockedJd) ? lockedJd : ''
+    }
+  })
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [uploadLoading, setUploadLoading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
+  const [jdLocked, setJdLocked] = useState(() => {
+    const saved = localStorage.getItem('jdLocked')
+    return saved ? JSON.parse(saved) : false
+  })
+  const [lockedJd, setLockedJd] = useState(() => {
+    return localStorage.getItem('lockedJd') || ''
+  })
   const fileInputRef = useRef(null)
+
+  // Persist JD lock state
+  useEffect(() => {
+    localStorage.setItem('jdLocked', JSON.stringify(jdLocked))
+    if (jdLocked) {
+      localStorage.setItem('lockedJd', formData.jobDescription)
+    }
+  }, [jdLocked, formData.jobDescription])
 
   // Kanban state
   const [candidates, setCandidates] = useState(() => {
@@ -49,11 +83,36 @@ function App() {
   // Form handlers
   const handleInputChange = (e) => {
     const { name, value } = e.target
+    if (name === 'jobDescription' && jdLocked) {
+      return // Prevent editing if JD is locked
+    }
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  const toggleJdLock = () => {
+    if (!jdLocked && !formData.jobDescription.trim()) {
+      setError('Please enter a job description before locking')
+      return
+    }
+    if (!jdLocked) {
+      // Locking the JD
+      setLockedJd(formData.jobDescription)
+      localStorage.setItem('lockedJd', formData.jobDescription)
+    } else {
+      // Unlocking the JD
+      setError(null)
+    }
+    setJdLocked(prev => !prev)
+  }
+
   const clearData = () => {
-    setFormData(initialFormState)
+    // If JD is locked, preserve it
+    const lockedJdValue = localStorage.getItem('lockedJd')
+    const isLocked = localStorage.getItem('jdLocked') === 'true'
+    setFormData({
+      ...getInitialFormState(),
+      jobDescription: (isLocked && lockedJdValue) ? lockedJdValue : ''
+    })
     setResult(null)
     setError(null)
     if (fileInputRef.current) {
@@ -168,6 +227,33 @@ function App() {
     })
     const experienceMatch = resume.match(/(\d+)\+?\s*years?\s*of\s*experience/i)
 
+    // Extract location from resume
+    const extractLocation = (text) => {
+      // Try to find common cities
+      for (const city of COMMON_CITIES) {
+        const regex = new RegExp(`\\b${city}\\b`, 'i')
+        if (regex.test(text)) {
+          return city
+        }
+      }
+      // Try to find location patterns like "Location: City" or "Based in City"
+      const locationPatterns = [
+        /(?:location|based\s+in|residing\s+in|from|address)[\s:]*([A-Za-z\s]+?)(?:,|\.|\n|$)/i,
+        /([A-Za-z]+(?:\s[A-Za-z]+)?),?\s*(?:India|IN)/i
+      ]
+      for (const pattern of locationPatterns) {
+        const match = text.match(pattern)
+        if (match && match[1]) {
+          const potentialLocation = match[1].trim()
+          if (potentialLocation.length > 2 && potentialLocation.length < 30) {
+            return potentialLocation
+          }
+        }
+      }
+      return null
+    }
+    const location = extractLocation(resume)
+
     // Extract skills with word boundary matching
     const extractSkillsFromText = (text) => {
       const skillsFound = new Set()
@@ -279,37 +365,48 @@ function App() {
       (bonusScore * 0.10)
     )
 
-    // Determine match level
+    // Determine match level based on overall score
     let matchLevel = 'Weak Fit'
     if (overallScore >= 80) matchLevel = 'Strong Fit'
     else if (overallScore >= 60) matchLevel = 'Moderate Fit'
 
-    // Determine decision and confidence
+    // Determine decision and confidence based on strict criteria
     let decision = 'Reject'
     let confidenceLevel = 'Low'
 
-    // Only shortlist if ALL of the following are true:
-    // 1. Overall score >= 60
-    // 2. Missing skills <= 3
-    // 3. JD has at least one required skill (to ensure meaningful comparison)
-    if (overallScore >= 60 && missingSkills.length <= 3 && jdSkills.length > 0) {
+    // STRICT CRITERIA:
+    // 1. Matched skills must be > 3 (if <= 3, automatically reject)
+    // 2. Score Range:
+    //    - ≥ 80: Shortlist, High confidence
+    //    - 60-79: Shortlist, Medium confidence
+    //    - < 60: Reject, Low confidence
+    if (matchedSkills.length > 3 && overallScore >= 60 && jdSkills.length > 0) {
       decision = 'Shortlist'
-      confidenceLevel = overallScore >= 80 ? 'High' : 'Medium'
+      if (overallScore >= 80) {
+        confidenceLevel = 'High'
+      } else {
+        confidenceLevel = 'Medium'
+      }
+    } else {
+      decision = 'Reject'
+      confidenceLevel = 'Low'
     }
 
     // Build reasoning summary
     const strengths = []
     if (candidateYears >= parseInt(requiredYears)) strengths.push(`Has ${candidateYears}+ years of experience`)
-    if (matchedSkills.length > 0) strengths.push(`Strong skill match: ${matchedSkills.slice(0, 3).join(', ')}`)
+    if (matchedSkills.length > 0) strengths.push(`Matched skills: ${matchedSkills.slice(0, 5).join(', ')}`)
     if (hasDegree) strengths.push('Relevant educational background')
 
     const riskFlags = []
-    if (missingSkills.length > 0) riskFlags.push(`Missing key skills: ${missingSkills.slice(0, 3).join(', ')}`)
+    if (matchedSkills.length <= 3) riskFlags.push(`Insufficient matched skills (${matchedSkills.length} ≤ 3)`)
+    if (overallScore < 60) riskFlags.push(`Overall score below threshold (${overallScore} < 60)`)
+    if (missingSkills.length > 0) riskFlags.push(`Missing skills: ${missingSkills.slice(0, 3).join(', ')}`)
     if (candidateYears < parseInt(requiredYears)) riskFlags.push('Experience below requirement')
 
     let reasoningSummary = ''
     if (decision === 'Shortlist') {
-      reasoningSummary = `Shortlisted candidate with ${overallScore}% match. `
+      reasoningSummary = `Shortlisted candidate with ${overallScore}% match (${confidenceLevel} confidence). `
     } else {
       reasoningSummary = `Rejected candidate with ${overallScore}% match. `
     }
@@ -322,7 +419,8 @@ function App() {
         email: emailMatch ? emailMatch[0] : null,
         phone: validPhone || null,
         total_experience_years: candidateYears,
-        skills: candidateSkills
+        skills: candidateSkills,
+        location: location
       },
       evaluation: {
         required_skills_score: requiredSkillsScore,
@@ -380,6 +478,21 @@ function App() {
   const handleMoveToKanban = () => {
     if (!result) return
 
+    // Check for duplicates based on email or phone
+    const email = result.candidate_profile.email
+    const phone = result.candidate_profile.phone
+    
+    const isDuplicate = candidates.some(candidate => {
+      const emailMatch = email && candidate.email && candidate.email.toLowerCase() === email.toLowerCase()
+      const phoneMatch = phone && candidate.phone && candidate.phone.replace(/\D/g, '') === phone.replace(/\D/g, '')
+      return emailMatch || phoneMatch
+    })
+
+    if (isDuplicate) {
+      setError('This candidate already exists in the Kanban board. Duplicate entries are not allowed.')
+      return
+    }
+
     const newCandidate = {
       id: Date.now().toString(),
       name: result.candidate_profile.name || 'Unnamed Candidate',
@@ -388,9 +501,12 @@ function App() {
       currentRole: result.candidate_profile.current_role,
       overallScore: result.evaluation.overall_score,
       skills: result.candidate_profile.skills || [],
+      location: result.candidate_profile.location,
       stage: result.final_decision.decision === 'Shortlist' ? 'shortlisted' : 'todo',
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      resumeFileName: formData.uploadedFileName,
+      resumeText: formData.resumeText
     }
 
     setCandidates(prev => [...prev, newCandidate])
@@ -682,7 +798,36 @@ function App() {
                   placeholder="Paste the job description here..."
                   value={formData.jobDescription}
                   onChange={handleInputChange}
+                  disabled={jdLocked}
+                  className={jdLocked ? 'locked' : ''}
                 />
+                <div className="jd-lock-container">
+                  <button
+                    type="button"
+                    className={`jd-lock-btn ${jdLocked ? 'locked' : ''}`}
+                    onClick={toggleJdLock}
+                    title={jdLocked ? 'Unlock Job Description' : 'Lock Job Description'}
+                  >
+                    {jdLocked ? (
+                      <>
+                        <svg className="lock-icon" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                        </svg>
+                        <span>Locked</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="lock-icon" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"/>
+                        </svg>
+                        <span>Lock JD</span>
+                      </>
+                    )}
+                  </button>
+                  {jdLocked && (
+                    <span className="jd-lock-hint">Job Description is locked. Click the lock to edit.</span>
+                  )}
+                </div>
               </div>
             </div>
 
